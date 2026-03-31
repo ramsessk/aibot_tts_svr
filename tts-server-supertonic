@@ -1,0 +1,124 @@
+#!/home/javis/mybin/supertonic/py/venv/bin/python3
+"""
+SuperTonic TTS Server - FastAPI-based service using SuperTonic inference
+Usage: tts-server-supertonic [--port PORT] [--host HOST]
+"""
+
+import argparse
+import wave
+import os
+import subprocess
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+import requests
+
+app = FastAPI(title="SuperTonic TTS Server", version="1.0")
+
+# Configuration
+VENV_PYTHON = "/home/javis/mybin/supertonic/py/venv/bin/python"
+INFERENCE_SCRIPT = "/home/javis/mybin/supertonic/py/inference.py"
+OUTPUT_WAV = "/tmp/tts_output.wav"
+
+class TTSRequest(BaseModel):
+    text: str
+
+def add_silence(audio_path: str, duration_sec: float = 1.0) -> None:
+    """Add silence to the beginning of the wav file using 'wave' to preserve sample rate."""
+    temp_path = audio_path + ".tmp.wav"
+    
+    with wave.open(audio_path, 'rb') as src:
+        params = src.getparams()
+        
+        # Calculate number of frames for silence
+        num_frames = int(params.framerate * duration_sec)
+        
+        with wave.open(temp_path, 'wb') as dst:
+            dst.setparams(params)
+            # Write silence (all zeros)
+            dst.writeframes(b'\x00' * (num_frames * params.nchannels * params.sampwidth))
+            # Append original audio
+            dst.writeframes(src.readframes(src.getnframes()))
+    
+    os.replace(temp_path, audio_path)
+
+def generate_audio(text: str) -> str:
+    """Generate TTS audio using SuperTonic inference and return path with 1s silence."""
+    os.makedirs(os.path.dirname(OUTPUT_WAV), exist_ok=True)
+    
+    # Generate TTS audio using only --text, all other options default
+    cmd = [
+        VENV_PYTHON,
+        INFERENCE_SCRIPT,
+        "--text", text,
+        "--output", OUTPUT_WAV[:-4]  # inference.py may append .wav
+    ]
+    
+    script_dir = os.path.dirname(INFERENCE_SCRIPT)
+    result = subprocess.run(cmd, capture_output=True, text=True, cwd=script_dir)
+    if result.returncode != 0:
+        raise HTTPException(status_code=500, detail=f"TTS generation failed: {result.stderr}")
+    
+    if not os.path.exists(OUTPUT_WAV):
+        raise HTTPException(status_code=500, detail="TTS generation succeeded but output file not found")
+        
+    add_silence(OUTPUT_WAV)
+    return OUTPUT_WAV
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "model": "supertomic"}
+
+@app.get("/voices")
+def list_voices():
+    return {"voices": ["default"]}
+
+# Node.js 로보 서버의 주소 (리눅스 서버의 실제 IP 또는 localhost)
+ROBO_SERVER_URL = "http://localhost:5000"
+@app.post("/tts")
+def tts(request: TTSRequest):
+    if not request.text or not request.text.strip():
+        raise HTTPException(status_code=400, detail="Text is required")
+
+    try:
+        # 1. TTS 음성 파일 생성
+        audio_path = generate_audio(request.text)
+        
+        # 2. 로보 서버로 데이터 전송 시도
+        try:
+            # (A) 먼저 텍스트를 보냄
+            requests.post(
+                f"{ROBO_SERVER_URL}/text", 
+                json={"message": request.text},
+                timeout=2
+            )
+            
+            # (B) 이어서 생성된 WAV 파일을 바이너리로 보냄
+            with open(audio_path, 'rb') as f:
+                requests.post(
+                    f"{ROBO_SERVER_URL}/wav", 
+                    data=f,
+                    headers={'Content-Type': 'audio/wav'},
+                    timeout=5
+                )
+        except Exception as e:
+            print(f"로보 서버 전송 실패: {e}")
+            # 로보 서버 전송에 실패하더라도 기존처럼 로컬 재생(paplay)은 시도하도록 유지할 수 있습니다.
+            # subprocess.Popen(["paplay", audio_path], ...)
+
+        # 기존처럼 생성된 파일을 리턴함
+        return FileResponse(audio_path, media_type="audio/wav", filename="response.wav")
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    parser = argparse.ArgumentParser(description="SuperTonic TTS Server")
+    parser.add_argument("--port", type=int, default=8989, help="Server port")
+    parser.add_argument("--host", type=str, default="127.0.0.1", help="Server host")
+    args = parser.parse_args()
+    
+    print(f"Starting SuperTonic TTS Server on {args.host}:{args.port}")
+    uvicorn.run(app, host=args.host, port=args.port)
