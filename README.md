@@ -4,14 +4,29 @@
 
 TTS Server Supertonic은 텍스트를 음성으로 변환하는 서비스입니다. Supertonic TTS 엔진을 기반으로 한 HTTP 서버로, RESTful API를 통해 텍스트 입력을 받아 음성 파일을 생성하고 반환합니다.
 
+Supertonic TTS 엔진은 : https://github.com/supertone-inc/supertonic#
+이 레포에는 submodule 로 포함되어 있다.
+
+여기 코드도 모두 AI가 만든 것임.
+
 ## 디렉토리 구조
 
 ```text
 ~/mybin/
 ├── tts-server-supertonic      # 메인 서버 실행 스크립트
 └── supertonic/
-    ├── [엔진 관련 파일들]     # Supertonic TTS 엔진 파일들
+    ├── py
+    |   └──infereence.py 여기에 있는 것으로 가정함. 
+    |
+    ├─-assets/ 모델데이타가 있어야 함(https://huggingface.co/Supertone/supertonic-2)
     └── [추가 모듈 및 설정 파일들]
+```
+
+Git submodules을 유지하기 위해 inference.py 위치를 supertonic/으로 옮겼다.
+huggingface에 있는 model을 clone 하기전에에 반드시
+```shell
+apt install git-lfs
+git lfs install
 ```
 
 설치 방법
