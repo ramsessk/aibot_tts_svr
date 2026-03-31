@@ -1,0 +1,6 @@
+[submodule "supertonic"]
+	path = supertonic
+	url = git@github.com:supertone-inc/supertonic.git
+[submodule "assets"]
+	path = assets
+	url = https://huggingface.co/Supertone/supertonic-2
