@@ -1,14 +1,19 @@
-개요
+# TTS Server supertonic
+
+## 개요
 
 TTS Server Supertonic은 텍스트를 음성으로 변환하는 서비스입니다. Supertonic TTS 엔진을 기반으로 한 HTTP 서버로, RESTful API를 통해 텍스트 입력을 받아 음성 파일을 생성하고 반환합니다.
 
-디렉토리 구조
+## 디렉토리 구조
 
+```text
 ~/mybin/
 ├── tts-server-supertonic      # 메인 서버 실행 스크립트
 └── supertonic/
     ├── [엔진 관련 파일들]     # Supertonic TTS 엔진 파일들
     └── [추가 모듈 및 설정 파일들]
+```
+
 설치 방법
 
 필수 요구사항
@@ -20,27 +25,35 @@ TTS Server Supertonic은 텍스트를 음성으로 변환하는 서비스입니�
 설치 단계
 
 1. 저장소를 클론하거나 파일을 복사합니다:
-shell
+```shell
 
 git clone [repository-url]
 # 또는
 cp -r ~/mybin/tts-server-supertonic ~/mybin/supertonic/ [목적지]
+```
+
 2. 필요한 의존성을 설치합니다:
-shell
+```shell
 
 # requirements.txt가 있는 경우
 pip install -r requirements.txt
+```
+
 사용 방법
 
 서버 실행
 
+```
 ~/mybin/tts-server-supertonic
+```
+
 서버는 기본적으로 로컬 호스트의 특정 포트에서 실행됩니다. 포트 번호는 서버 스크립트에서 확인할 수 있습니다.
 
 API 엔드포인트
 
 텍스트를 음성으로 변환
 
+```
 POST /tts
 Content-Type: application/json
 
@@ -49,6 +62,7 @@ Content-Type: application/json
   "language": "ko",  // 선택 사항, 기본값: 한국어
   "voice": "default" // 선택 사항, 음성 종류
 }
+```
 응답:
 
 • 성공 시: 음성 파일 (WAV 형식 또는 설정에 따른 형식)
@@ -56,28 +70,37 @@ Content-Type: application/json
 
 예제 사용법
 
-shell
+```shell
 
 curl -X POST http://localhost:8000/tts \
   -H "Content-Type: application/json" \
   -d '{"text": "안녕하세요, 제주도의 오늘 날씨는 맑음입니다."}' \
   -o output.wav
+```
+
 테스트 방법
 
 기본 기능 테스트
 
 1. 서버를 시작합니다:
+```
 ~/mybin/tts-server-supertonic &
+```
+
 2. 간단한 텍스트로 테스트합니다:
-shell
+```shell
 
 curl -X POST http://localhost:8000/tts \
   -H "Content-Type: application/json" \
   -d '{"text": "테스트입니다."}' \
   -o test_output.wav
+```
+
 3. 생성된 파일을 재생하여 정상 동작 여부를 확인합니다:
 # Linux의 경우
+```
 aplay test_output.wav
+```
 
 # 또는 다른 오디오 재생 도구 사용
 오류 상황 테스트
